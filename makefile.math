@@ -1,0 +1,240 @@
+lm = latexmk
+lm-opts = -pdf --shell-escape
+resources_folder = resources
+pic_folder = pictures
+tex_folder = $(pic_folder)/tex
+svg_folder = $(pic_folder)/svg
+pdf_folder = pdfs
+
+exts = fls log aux synctex.gz fdb_latexmk nav snm vrb run.xml bbl out ent auxlock
+
+tex_files = $(wildcard $(tex_folder)/*.tex)
+pic_files = $(patsubst $(tex_folder)/%.tex, $(pic_folder)/%.jpg, $(tex_files))
+svg_files = $(wildcard $(svg_folder)/*.svg)
+pics_from_svg = $(patsubst $(svg_folder)/%.svg, $(pic_folder)/%.pdf, $(svg_files)) #But will also generate the pdf_tex
+
+convert_opts = -density 300 -quality 100 -sharpen 0x2.0 -flatten
+
+#Variables to hold the daily quizzes, &c
+#so that solutions and originals can be 
+#created from the same files
+dqs = $(patsubst %.tex, %.pdf, $(wildcard dq*.tex))
+dqSolns = $(patsubst %.tex, %-solutions.pdf, $(wildcard dq*.tex))
+
+quizzes = $(patsubst %.tex, %.pdf, $(wildcard quiz*.tex))
+quizSolns = $(patsubst %.tex, %-solutions.pdf, $(wildcard quiz*.tex))
+
+assignments = $(patsubst %.tex, %.pdf, $(wildcard assignment*.tex))
+assignmentSolns = $(patsubst %.tex, %-solutions.pdf, $(wildcard assignment*.tex))
+
+versions = A B C D
+unitTests = $(foreach version,$(versions),$(patsubst %.pdf,%-version$(version).pdf,$(patsubst %.tex, %.pdf, $(wildcard unitTest*.tex))))
+unitTests += $(patsubst %.tex,%.pdf,$(wildcard unitTest*.tex))
+unitTestSolns = $(patsubst %.pdf,%-solutions.pdf,$(unitTests))
+
+practice = $(patsubst %.tex, %.pdf, $(wildcard practice*.tex))
+practiceSolns = $(patsubst %.tex, %-solutions.pdf, $(wildcard practice*.tex))
+
+worksheets = $(patsubst %.tex, %.pdf, $(wildcard worksheet*.tex))
+worksheetSolns = $(patsubst %.tex, %-solutions.pdf, $(wildcard worksheet*.tex))
+
+combined_lps = lp-Combined.pdf
+
+.PHONY: all lessons worksheets assignments clean depclean quizzes pics outline dq unitTest misc practice upload unit cleanunit projects lps lp_tex
+
+all: lessons assignments dqs quizzes outline unitTests misc worksheets upload practice $(lesson_target) lps projects | folders
+
+
+############# Default rule
+# If nothing else, just compile some tex files!
+%.pdf: %.tex
+	$(lm) $(lm-opts) $<
+
+################## Necessary folders
+folders: | $(tex_folder) $(pic_folder) $(pdf_folder) $(resources_folder)
+$(tex_folder): | $(resources_folder)
+	mkdir $(tex_folder)
+
+$(pic_folder): 
+	mkdir $(pic_folder)
+
+$(pdf_folder):
+	mkdir $(pdf_folder)
+
+$(resources_folder):
+	mkdir $(resources_folder)
+
+
+
+
+
+unit: | $(pdf_folder) $(pic_folder) $(tex_folder)
+	rm -f $(pdf_folder)/*.pdf && make && make depclean && cp *.pdf $(pdf_folder)/
+
+cleanunit: | $(pdf_folder) $(pic_folder) $(tex_folder)
+	rm -f $(pdf_folder)/*.pdf && make clean && make && make depclean && cp *.pdf $(pdf_folder)/
+
+
+
+
+########### Pictures
+pics: $(pic_files) $(pics_from_svg) | folders
+	$(info Making pictures)
+
+$(pic_files): $(pic_folder)/%.jpg: $(tex_folder)/%.tex
+	cd $(tex_folder) && $(lm) $(lm-opts) $*
+	cd $(tex_folder) && pdfcrop $*.pdf $*.pdf
+	cd $(tex_folder) && convert $(convert_opts) $*.pdf $*.jpg
+	cp $(tex_folder)/$*.pdf $(pic_folder)
+	mv $(tex_folder)/$*.jpg $(pic_folder)
+
+$(pics_from_svg): $(pic_folder)/%.pdf: $(svg_folder)/%.svg
+	inkscape -D -z --file=$< --export-pdf=$@ --export-latex
+
+
+############### LPs
+lps: $(combined_lps)
+
+$(combined_lps): lps.json lp_tex
+	$(MAKE) $(patsubst %.tex,%.pdf,$(shell ls lp-*.tex))
+	rm -f $(combined_lps)
+	pdfunite lp-*.pdf $(combined_lps)
+
+lp_tex:
+	rm -f $(wildcard lp-*.tex)
+	generate_lps lps.json --generate_objectives
+	generate_lps lps.json
+
+
+lp-%.pdf: lp-%.tex
+	$(lm) $(lm-opts) $<
+
+
+
+##### Daily Quizzes ########
+dqs: $(dqs) $(dqSolns)
+
+$(dqs): %.pdf: %.tex pics
+	latexmk -pdf $<
+
+$(dqSolns): %-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+
+####### Quizzes ##########
+quizzes: $(quizzes) $(quizSolns)
+
+$(quizzes): %.pdf: %.tex pics
+	latexmk -pdf $<
+
+$(quizSolns): %-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+
+####### Unit Tests ##########
+unitTests: $(unitTests) $(unitTestSolns)
+	$(info $(unitTests))
+
+$(patsubst %.tex,%.pdf,$(wildcard unitTest*.tex)): %.pdf: %.tex pics
+	latexmk -pdf $<
+
+$(patsubst %.tex,%-solutions.pdf,$(wildcard unitTest*.tex)): %-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+
+%-versionA.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionA $*
+%-versionB.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionB $*
+%-versionC.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionC $*
+%-versionD.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionD $*
+
+
+%-versionA-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionA-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+%-versionB-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionB-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+%-versionC-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionC-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+%-versionD-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-versionD-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+
+####### Assignents ##########
+assignments: $(assignments) $(assignmentSolns)
+
+$(assignments): %.pdf: %.tex pics
+	latexmk -pdf $<
+
+$(assignmentSolns): %-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+####### Practice ##########
+practice: $(practice) $(practiceSolns)
+
+$(practice): %.pdf: %.tex pics
+	latexmk -pdf $<
+
+$(practiceSolns): %-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+##### Worksheets ########
+worksheets: $(worksheets) $(worksheetSolns)
+
+$(worksheets): %.pdf: %.tex pics
+	latexmk -pdf $<
+
+$(worksheetSolns): %-solutions.pdf: %.tex pics
+	latexmk -pdf -jobname=$*-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+lessons: pics
+ifeq ($(wildcard lesson*.tex),)
+	@echo No lessons to be built
+else
+	rm -f *.bcf
+	$(lm) $(lm-opts) $(wildcard lesson*.tex)
+#	rm -f lesson-Combined.pdf
+#	pdfunite lesson-0[!0]*.pdf lesson-Combined.pdf
+endif
+
+worksheets: pics
+ifeq ($(wildcard worksheet*.tex),)
+	@echo No worksheets to be built
+else
+	$(lm) $(lm-opts) $(wildcard worksheet*.tex)
+endif
+
+misc: pics
+ifeq ($(wildcard misc*.tex),)
+	@echo No miscellaneous items to be built
+else
+	$(lm) $(lm-opts) $(wildcard misc*.tex)
+endif
+
+outline:
+ifeq ($(wildcard outline*.tex),)
+	@echo No outline to be built
+else
+	$(lm) $(lm-opts) $(wildcard outline*.tex)
+endif
+
+projects: $(patsubst %.tex,%.pdf,$(wildcard project-*.tex))
+
+
+upload:
+	@echo Nothing to do for upload
+
+
+depclean:
+	-latexmk -c
+	rm -f $(foreach ext,$(exts),*.$(ext))
+	-cd $(tex_folder) && latexmk -c && rm -f $(foreach ext,$(exts),*.$(ext))
+
+
+clean:
+	$(MAKE) depclean
+	-latexmk -C
+	rm -f $(quizSolns) $(dqSolns) $(assignmentSolns) $(unitTests) $(unitTestSolns) $(practiceSolns) $(worksheetSolns) $(combined_lps)
+	-cd $(tex_folder) && latexmk -C

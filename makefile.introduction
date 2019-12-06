@@ -1,0 +1,50 @@
+LM = latexmk
+LM-OPTS = -pdf
+
+pdf_folder = pdfs
+resource_folder = resources
+tex_folder = $(resource_folder)/tex
+pictures_folder = pictures
+
+PDFS = $(patsubst %.tex,%.pdf,$(wildcard *.tex)) 
+
+pic_files = $(patsubst $(tex_folder)/%.pdf,$(pictures_folder)/%.pdf,$(patsubst %.tex,%.pdf,$(wildcard $(tex_folder)/*.tex))) #picture files in the correct folder
+
+.PHONY: all folders depclean clean pics lps
+
+all: $(PDFS) | folders
+# -n -> don't overwrite (takes care of misc. pdfs not generated from .tex)
+	cp -n *.pdf $(pdf_folder) 
+
+folders: $(pdf_folder) $(resource_folder) $(tex_folder) $(pictures_folder)
+$(pdf_folder):
+	mkdir $(pdf_folder)
+$(resource_folder):
+	mkdir $(resource_folder)
+$(tex_folder):
+	mkdir $(tex_folder)
+$(pictures_folder):
+	mkdir $(pictures_folder)
+
+%.pdf: %.tex pics
+	$(LM) $(LM-OPTS) $<
+	cp $@ $(pdf_folder)
+
+pics: $(pic_files)
+
+$(pictures_folder)/%.pdf: $(tex_folder)/%.tex
+	cd $(tex_folder) && $(LM) $(LM-OPTS) $*
+	cd $(tex_folder) && pdfcrop $*.pdf $*.pdf
+	cp $(tex_folder)/$*.pdf $(pictures_folder)
+
+lps: $(patsubst %.tex,%.pdf,$(wildcard lp-*.tex))
+
+lp-%.pdf: lp-%.tex pics
+	$(LM) $(LM-OPTS) $<
+
+depclean:
+	latexmk -c
+	rm -f *.fls *.log *.aux *.synctex.gz *.fdb_latexmk *.nav *.snm *.vrb *.out *.toc
+clean:
+	$(MAKE) depclean
+	latexmk -C

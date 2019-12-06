@@ -1,0 +1,8 @@
+.PHONY: all
+
+all: $(patsubst %.js, %-output.txt, $(wildcard *.js))
+
+%-output.txt: %.js
+	script -c "node $<" $@
+	dos2unix -f $@
+	sed -e '1d' -e '$$d' -i $@

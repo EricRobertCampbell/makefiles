@@ -1,0 +1,8 @@
+.PHONY: all
+
+all: $(patsubst %.py, output-%.txt, $(wildcard *.py))
+
+output-%.txt: %.py
+	script -c "python3 $<" $@
+	dos2unix -f $@
+	sed -e '1d' -e '$$d' -i $@

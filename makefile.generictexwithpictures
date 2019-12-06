@@ -1,0 +1,64 @@
+lm = latexmk
+lm-opts = -pdf --shell-escape
+resources_folder = resources
+pic_folder = pictures
+tex_folder = $(resources_folder)/tex
+svg_folder = $(resources_folder)/svg
+pdf_folder = pdfs
+
+exts = fls log aux synctex.gz fdb_latexmk nav snm vrb run.xml bbl out ent auxlock
+
+tex_files = $(wildcard $(tex_folder)/*.tex)
+pic_files = $(patsubst $(tex_folder)/%.tex, $(pic_folder)/%.jpg, $(tex_files))
+svg_files = $(wildcard $(svg_folder)/*.svg)
+pics_from_svg = $(patsubst $(svg_folder)/%.svg, $(pic_folder)/%.pdf, $(svg_files)) #But will also generate the pdf_tex
+
+convert_opts = -density 300 -quality 100 -sharpen 0x2.0 -flatten
+
+.PHONY: all clean depclean pics
+
+all: $(patsubst %.tex,%.pdf,$(wildcard *.tex))
+
+
+############# Default rule
+# If nothing else, just compile some tex files!
+%.pdf: %.tex pics
+	$(lm) $(lm-opts) $<
+
+################## Necessary folders
+folders: | $(tex_folder) $(pic_folder) $(pdf_folder) $(resources_folder)
+$(tex_folder): | $(resources_folder)
+	mkdir $(tex_folder)
+
+$(pic_folder): 
+	mkdir $(pic_folder)
+
+$(pdf_folder):
+	mkdir $(pdf_folder)
+
+$(resources_folder):
+	mkdir $(resources_folder)
+
+########### Pictures
+pics: $(pic_files) $(pics_from_svg) | folders
+	$(info Making pictures)
+
+$(pic_files): $(pic_folder)/%.jpg: $(tex_folder)/%.tex
+	cd $(tex_folder) && $(lm) $(lm-opts) $*
+	cd $(tex_folder) && pdfcrop $*.pdf $*.pdf
+	cd $(tex_folder) && convert $(convert_opts) $*.pdf $*.jpg
+	cp $(tex_folder)/$*.pdf $(pic_folder)
+	mv $(tex_folder)/$*.jpg $(pic_folder)
+
+$(pics_from_svg): $(pic_folder)/%.pdf: $(svg_folder)/%.svg
+	inkscape -D -z --file=$< --export-pdf=$@ --export-latex
+
+depclean:
+	-latexmk -c
+	rm -f $(foreach ext,$(exts),*.$(ext))
+	-cd $(tex_folder) && latexmk -c && rm -f $(foreach ext,$(exts),*.$(ext))
+
+clean:
+	$(MAKE) depclean
+	-latexmk -C
+	-cd $(tex_folder) && latexmk -C
