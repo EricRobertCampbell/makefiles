@@ -90,10 +90,10 @@ $(pics_from_svg): $(pic_folder)/%.pdf: $(svg_folder)/%.svg
 lps: lp-Combined.pdf
 
 
-lp-Combined.pdf: lps.json
+lp-Combined.pdf: lps.yaml
 	rm -f $(wildcard lp-*.tex)
-	generate_lps lps.json --generate_objectives
-	generate_lps lps.json
+	generate_lps lps.yaml --generate_objectives
+	generate_lps lps.yaml
 	$(eval lp_targets := $(patsubst %.tex,%.pdf,$(wildcard lp-*.tex)))
 	$(MAKE) $(lp_targets)
 	rm -f lp-Combined.pdf

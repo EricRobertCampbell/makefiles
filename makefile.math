@@ -95,15 +95,15 @@ $(pics_from_svg): $(pic_folder)/%.pdf: $(svg_folder)/%.svg
 ############### LPs
 lps: $(combined_lps)
 
-$(combined_lps): lps.json lp_tex
+$(combined_lps): lps.yaml lp_tex
 	$(MAKE) $(patsubst %.tex,%.pdf,$(shell ls lp-*.tex))
 	rm -f $(combined_lps)
 	pdfunite lp-*.pdf $(combined_lps)
 
 lp_tex:
 	rm -f $(wildcard lp-*.tex)
-	generate_lps lps.json --generate_objectives
-	generate_lps lps.json
+	generate_lps lps.yaml --generate_objectives
+	generate_lps lps.yaml
 
 
 lp-%.pdf: lp-%.tex
