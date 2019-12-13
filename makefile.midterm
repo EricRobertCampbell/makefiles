@@ -1,0 +1,72 @@
+lm_opts = -pdf
+
+exts = fls log aux synctex.gz fdb_latexmk nav snm vrb run.xml bbl out ent auxlock
+
+pic_folder = pictures
+tex_folder = $(pic_folder)/tex
+svg_folder = $(pic_folder)/svg
+versions = A B C D
+
+tex_files = $(wildcard $(tex_folder)/*.tex)
+pic_files = $(patsubst $(tex_folder)/%.tex, $(pic_folder)/%.jpg, $(tex_files))
+svg_files = $(wildcard $(svg_folder)/*.svg)
+pics_from_svg = $(patsubst $(svg_folder)/%.svg, $(pic_folder)/%.pdf, $(svg_files)) #But will also generate the pdf_tex
+
+.PHONY: all pics clean depclean
+
+all: $(patsubst %.tex,%.pdf,$(wildcard *.tex)) $(patsubst %.tex,%-solutions.pdf,$(wildcard *.tex)) $(foreach version,$(versions),$(patsubst %.pdf,%-version$(version).pdf,$(patsubst %.tex,%.pdf,$(wildcard midterm*.tex)))) $(foreach version,$(versions),$(patsubst %.pdf,%-version$(version)-solutions.pdf,$(patsubst %.tex,%.pdf,$(wildcard midterm*.tex))))
+	cp *.pdf pdfs/
+
+%.pdf: %.tex pics
+	latexmk $(lm_opts) $<
+
+%-solutions.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+%-versionA.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionA $*
+%-versionB.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionB $*
+%-versionC.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionC $*
+%-versionD.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionD $*
+
+
+%-versionA-solutions.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionA-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+%-versionB-solutions.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionB-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+%-versionC-solutions.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionC-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+%-versionD-solutions.pdf: %.tex pics
+	latexmk $(lm_opts) -jobname=$*-versionD-solutions -pdflatex='pdflatex %O "\PassOptionsToClass{answers}{exam}\input{$<}"' $<
+
+########### Pictures
+pics: $(pic_files) $(pics_from_svg)
+	$(info tex folder: $(tex_folder))
+	$(info tex files: $(tex_files))
+	$(info Made $(pic_files) $(pics_from_svg))
+
+$(pic_files): $(pic_folder)/%.jpg: $(tex_folder)/%.tex
+	cd $(tex_folder) && latexmk $(lm-opts) $*
+	cd $(tex_folder) && pdfcrop $*.pdf $*.pdf
+	cd $(tex_folder) && convert $(convert_opts) $*.pdf $*.jpg
+	cp $(tex_folder)/$*.pdf $(pic_folder)
+	mv $(tex_folder)/$*.jpg $(pic_folder)
+
+$(pics_from_svg): $(pic_folder)/%.pdf: $(svg_folder)/%.svg
+	inkscape -D -z --file=$< --export-pdf=$@ --export-latex
+
+
+
+depclean:
+	-latexmk -c
+	rm -f $(foreach ext,$(exts),*.$(ext))
+	-cd $(tex_folder) && latexmk -c && rm -f $(foreach ext,$(exts),*.$(ext))
+
+clean:
+	$(MAKE) depclean
+	-latexmk -C
+	rm -f $(quizSolns) $(dqSolns) $(assignmentSolns) $(unitTests) $(unitTestSolns) $(practiceSolns) $(worksheetSolns) $(combined_lps)
+	-cd $(tex_folder) && latexmk -C
