@@ -66,7 +66,7 @@ $(resources_folder):
 
 
 unit: | $(pdf_folder) $(pic_folder) $(tex_folder)
-	rm -f $(pdf_folder)/*.pdf && make clean && make && make depclean && cp *.pdf $(pdf_folder)/
+	make clean && make && make depclean && rm -f $(pdf_folder)/*.pdf && cp *.pdf $(pdf_folder)/
 
 
 
@@ -227,5 +227,5 @@ depclean:
 clean:
 	$(MAKE) depclean
 	-latexmk -C
-	rm -f $(quizSolns) $(dqSolns) $(assignmentSolns) $(unitTestSolns) $(practiceSolns) $(worksheetSolns)
+	rm -f $(quizSolns) $(dqSolns) $(assignmentSolns) $(unitTestSolns) $(practiceSolns) $(worksheetSolns) lp-Combined.pdf
 	-cd $(tex_folder) && latexmk -C

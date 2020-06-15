@@ -6,3 +6,4 @@ all: $(patsubst %.js, %-output.txt, $(wildcard *.js))
 	script -c "node $<" $@
 	dos2unix -f $@
 	sed -e '1d' -e '$$d' -i $@
+	sed -i 's/\x1b\[33m\|\x1b\[39m\|\x1b\[32m//g' $@
