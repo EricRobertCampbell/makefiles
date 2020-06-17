@@ -66,7 +66,7 @@ $(resources_folder):
 
 
 unit: | $(pdf_folder) $(pic_folder) $(tex_folder)
-	make clean && make && make depclean && rm -f $(pdf_folder)/*.pdf && cp *.pdf $(pdf_folder)/
+	make && make depclean && rm -f $(pdf_folder)/*.pdf && cp *.pdf $(pdf_folder)/
 
 
 
